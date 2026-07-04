@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Steam Market Monitor</title>
+<style>
+:root{--bg:#0b1822;--panel:#142735;--panel2:#1c394b;--line:#2c4b5f;--text:#f4f7f9;--muted:#8fc0df;--blue:#4bb2ea;--green:#55f27d;--red:#ff6464}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px Arial,sans-serif}
+.container{width:min(1500px,96%);margin:24px auto}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:18px}
+h1{margin:0 0 5px;font-size:25px}.sub{color:#9ab1c0}.actions{display:flex;gap:10px;flex-wrap:wrap}
+button,.file-label{border:0;border-radius:7px;padding:11px 15px;background:var(--blue);color:white;font-weight:700;cursor:pointer}
+.secondary{background:#29495d}.danger{background:#8f3434;padding:7px 10px;font-size:12px}.file-label input{display:none}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card small{color:#9dc3dc}.card strong{display:block;margin-top:8px;font-size:25px}.money{color:#55c8ff}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}.bar{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-bottom:1px solid var(--line)}
+.table-wrap{overflow:auto}table{width:100%;min-width:1450px;border-collapse:collapse;table-layout:fixed}th{background:var(--panel2);color:#91c3e4;text-transform:uppercase;font-size:12px}
+th,td{padding:13px 10px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle}th:first-child,td:first-child{text-align:left}
+th:nth-child(1){width:270px}th:nth-child(2){width:100px}th:nth-child(3){width:110px}th:nth-child(4),th:nth-child(5){width:110px}
+th:nth-child(6),th:nth-child(7),th:nth-child(8),th:nth-child(9){width:125px}th:nth-child(10){width:100px}th:nth-child(11){width:100px}
+.item{display:grid;grid-template-columns:58px 1fr;gap:12px;align-items:center;font-weight:700;line-height:1.2}.icon{width:58px;height:46px;object-fit:contain}
+input[type=number]{width:82px;background:#0d1e29;color:#fff;border:1px solid #3a6077;border-radius:6px;padding:9px;text-align:center}
+.green{color:var(--green);font-weight:700}.red{color:var(--red);font-weight:700}.link{color:#48c0ff;text-decoration:none}
+tfoot td{background:var(--panel2);font-size:16px;font-weight:700}.empty{padding:40px;text-align:center;color:#9ab1c0}
+.modal-bg{display:none;position:fixed;inset:0;background:#000b;z-index:10;align-items:center;justify-content:center;padding:20px}.modal-bg.show{display:flex}
+.modal{width:min(650px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px}.modal h2{margin-top:0}.modal p{color:#a7bac6;line-height:1.45}
+.modal input[type=url]{width:100%;padding:13px;border-radius:7px;border:1px solid #3a6077;background:#0d1e29;color:white;margin:8px 0 15px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px}.status{color:#9fd2ef}
+@media(max-width:850px){.top{align-items:flex-start;flex-direction:column}.cards{grid-template-columns:1fr}.container{width:98%}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="top">
+    <div><h1>STEAM MARKET MONITOR</h1><div class="sub">Cadastre qualquer item do CS2 pelo link do Mercado Steam</div></div>
+    <div class="actions">
+      <button onclick="openModal()">+ Adicionar item</button>
+      <button class="secondary" onclick="updateAll()">Atualizar preços</button>
+      <button class="secondary" onclick="exportBackup()">Exportar backup</button>
+      <label class="file-label secondary">Importar backup<input type="file" accept=".json" onchange="importBackup(event)"></label>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><small>VALOR LÍQUIDO ESTIMADO</small><strong class="money" id="cardNet">R$ 0,00</strong></div>
+    <div class="card"><small>TOTAL DE ITENS</small><strong id="cardQty">0</strong></div>
+    <div class="card"><small>ITENS MONITORADOS</small><strong id="cardCount">0</strong></div>
+  </div>
+
+  <div class="panel">
+    <div class="bar"><span class="status" id="status">Nenhum item cadastrado</span><span>Taxa estimada: 15%</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Item</th><th>Quantidade</th><th>Preço médio</th><th>Preço pago</th><th>Preço vendido</th>
+          <th>Valor bruto</th><th>Taxas estimadas</th><th>Valor líquido</th><th>Lucro</th><th>Mercado</th><th>Ações</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+        <tfoot id="foot"></tfoot>
+      </table>
+      <div class="empty" id="empty">Clique em <b>Adicionar item</b> e cole um link do Steam Market.</div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h2>Adicionar item</h2>
+    <p>Cole o link completo de qualquer item do CS2 no Mercado Steam. O nome, ícone e preço serão buscados automaticamente.</p>
+    <input id="itemUrl" type="url" placeholder="https://steamcommunity.com/market/listings/730/...">
+    <div class="modal-actions"><button class="secondary" onclick="closeModal()">Cancelar</button><button id="addBtn" onclick="addItem()">Adicionar</button></div>
+  </div>
+</div>
+
+<script>
+const KEY="steamMonitorV2";
+let items=JSON.parse(localStorage.getItem(KEY)||"[]");
+const brl=v=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(Number(v)||0);
+const parseBRL=s=>{if(!s)return 0;return Number(String(s).replace(/[^\d,.-]/g,"").replace(/\./g,"").replace(",", "."))||0};
+const save=()=>localStorage.setItem(KEY,JSON.stringify(items));
+function openModal(){itemUrl.value="";modal.classList.add("show");setTimeout(()=>itemUrl.focus(),50)}
+function closeModal(){modal.classList.remove("show")}
+function marketUrl(i){return i.url||`https://steamcommunity.com/market/listings/730/${encodeURIComponent(i.marketName)}`}
+function render(){
+  rows.innerHTML="";
+  empty.style.display=items.length?"none":"block";
+  items.forEach((i,n)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`
+      <td><div class="item"><img class="icon" src="${i.image||""}" onerror="this.style.visibility='hidden'"><span>${escapeHtml(i.name)}</span></div></td>
+      <td><input type="number" min="0" step="1" value="${i.qty||0}" onchange="setVal(${n},'qty',this.value)"></td>
+      <td id="price-${n}">${i.price?brl(i.price):"--"}</td>
+      <td><input type="number" min="0" step="0.01" value="${i.paid||0}" onchange="setVal(${n},'paid',this.value)"></td>
+      <td><input type="number" min="0" step="0.01" value="${i.sold||0}" onchange="setVal(${n},'sold',this.value)"></td>
+      <td class="green" id="gross-${n}"></td><td id="fee-${n}"></td><td class="green" id="net-${n}"></td><td id="profit-${n}"></td>
+      <td><a class="link" target="_blank" rel="noopener" href="${marketUrl(i)}">Abrir mercado</a></td>
+      <td><button class="danger" onclick="removeItem(${n})">Excluir</button></td>`;
+    rows.appendChild(tr);
+  });
+  calc();
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function setVal(n,k,v){items[n][k]=Number(v)||0;save();calc()}
+function calc(){
+  let G=0,F=0,N=0,P=0,Q=0;
+  items.forEach((i,n)=>{
+    const ref=i.sold>0?i.sold:(i.price||0), gross=ref*(i.qty||0), net=gross*.85, fee=gross-net, cost=(i.paid||0)*(i.qty||0), profit=net-cost;
+    G+=gross;F+=fee;N+=net;P+=profit;Q+=i.qty||0;
+    const ids=[["gross",gross],["fee",fee],["net",net],["profit",profit]];
+    ids.forEach(([id,v])=>{const e=document.getElementById(`${id}-${n}`);if(e)e.textContent=brl(v)});
+    const pe=document.getElementById(`profit-${n}`);if(pe)pe.className=profit>=0?"green":"red";
+  });
+  cardNet.textContent=brl(N);cardQty.textContent=Q;cardCount.textContent=items.length;
+  foot.innerHTML=items.length?`<tr><td colspan="5" style="text-align:right">TOTAL GERAL</td><td class="green">${brl(G)}</td><td>${brl(F)}</td><td class="green">${brl(N)}</td><td class="${P>=0?'green':'red'}">${brl(P)}</td><td colspan="2"></td></tr>`:"";
+}
+async function addItem(){
+  const url=itemUrl.value.trim(); if(!url.includes("steamcommunity.com/market/listings/730/")) return alert("Cole um link válido do Mercado Steam para CS2.");
+  addBtn.disabled=true;addBtn.textContent="Adicionando...";
+  try{
+    const r=await fetch(`/api/item-info?url=${encodeURIComponent(url)}`),d=await r.json();if(!d.success)throw new Error(d.error||"Falha ao identificar item");
+    if(items.some(i=>i.marketName===d.marketName))throw new Error("Esse item já está cadastrado.");
+    items.push({name:d.name,marketName:d.marketName,url:d.canonicalUrl||url,image:d.image||"",qty:0,paid:0,sold:0,price:d.price||0});
+    save();closeModal();render();await updateOne(items.length-1);
+  }catch(e){alert(e.message)}finally{addBtn.disabled=false;addBtn.textContent="Adicionar"}
+}
+async function updateOne(n){
+  const i=items[n]; const el=document.getElementById(`price-${n}`); if(el)el.textContent="...";
+  try{
+    const r=await fetch(`/api/price?marketName=${encodeURIComponent(i.marketName)}&url=${encodeURIComponent(i.url||"")}`),d=await r.json();
+    if(!d.success)throw new Error(); i.price=parseBRL(d.median_price||d.lowest_price); if(d.image&&!i.image)i.image=d.image; save();
+    if(el)el.textContent=brl(i.price);
+  }catch{if(el){el.textContent="Erro";el.className="red"}}
+  calc();
+}
+async function updateAll(){
+  if(!items.length)return;
+  status.textContent="Atualizando preços...";
+  let ok=0;
+  for(let n=0;n<items.length;n++){await updateOne(n);if(items[n].price)ok++;await new Promise(r=>setTimeout(r,900))}
+  status.textContent=`${ok}/${items.length} preços atualizados • ${new Date().toLocaleString("pt-BR")}`;
+}
+function removeItem(n){if(confirm(`Excluir ${items[n].name}?`)){items.splice(n,1);save();render()}}
+function exportBackup(){
+  const blob=new Blob([JSON.stringify({version:2,items},null,2)],{type:"application/json"}),a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="steam-monitor-backup.json";a.click();URL.revokeObjectURL(a.href);
+}
+function importBackup(ev){
+  const f=ev.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const d=JSON.parse(rd.result);items=Array.isArray(d)?d:d.items;if(!Array.isArray(items))throw 0;save();render();alert("Backup importado.");}catch{alert("Backup inválido.")}ev.target.value=""};rd.readAsText(f);
+}
+render(); if(items.length){status.textContent=`${items.length} itens carregados`;updateAll()}
+</script>
+</body></html>
