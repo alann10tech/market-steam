@@ -10,7 +10,7 @@ export default async function handler(req,res){
     if(!r.ok)throw new Error("A Steam não respondeu.");
     const html=await r.text();
     let name=meta(html,"og:title")||marketName;
-    name=name.replace(/\s*-\s*Steam Community Market.*$/i,"").replace(/\s*on Steam Community Market.*$/i,"").trim();
+    name=name.replace(/\s*[—-]\s*(Steam Community Market|Mercado da Comunidade Steam).*$/i,"").replace(/\s*on Steam Community Market.*$/i,"").trim();
     const image=meta(html,"og:image");
     const pm=/Market_LoadOrderSpread\(\s*(\d+)\s*\)/.exec(html);
     let price=0;
