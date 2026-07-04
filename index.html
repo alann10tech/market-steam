@@ -104,7 +104,7 @@ function setVal(n,k,v){items[n][k]=Number(v)||0;save();calc()}
 function calc(){
   let G=0,F=0,N=0,P=0,Q=0;
   items.forEach((i,n)=>{
-    const ref=i.sold>0?i.sold:(i.price||0), gross=ref*(i.qty||0), net=gross*.85, fee=gross-net, cost=(i.paid||0)*(i.qty||0), profit=net-cost;
+    const ref=i.sold>0?i.sold:(i.price||0), gross=ref*(i.qty||0), net=gross/1.15, fee=gross-net, cost=(i.paid||0)*(i.qty||0), profit=net-cost;
     G+=gross;F+=fee;N+=net;P+=profit;Q+=i.qty||0;
     const ids=[["gross",gross],["fee",fee],["net",net],["profit",profit]];
     ids.forEach(([id,v])=>{const e=document.getElementById(`${id}-${n}`);if(e)e.textContent=brl(v)});
