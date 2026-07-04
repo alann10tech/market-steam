@@ -124,19 +124,35 @@ async function addItem(){
   }catch(e){alert(e.message)}finally{addBtn.disabled=false;addBtn.textContent="Adicionar"}
 }
 async function updateOne(n){
-  const i=items[n]; const el=document.getElementById(`price-${n}`); if(el)el.textContent="...";
+  const i=items[n], el=document.getElementById(`price-${n}`), oldPrice=Number(i.price)||0;
+  if(el){el.textContent="...";el.className=""}
   try{
-    const r=await fetch(`/api/price?marketName=${encodeURIComponent(i.marketName)}&url=${encodeURIComponent(i.url||"")}`),d=await r.json();
-    if(!d.success)throw new Error(); i.price=parseBRL(d.median_price||d.lowest_price); if(d.image&&!i.image)i.image=d.image; save();
-    if(el)el.textContent=brl(i.price);
-  }catch{if(el){el.textContent="Erro";el.className="red"}}
-  calc();
+    const r=await fetch(`/api/price?marketName=${encodeURIComponent(i.marketName)}&url=${encodeURIComponent(i.url||"")}`);
+    const d=await r.json();
+    if(!r.ok||!d.success)throw new Error(d.error||"Falha temporária");
+    const newPrice=parseBRL(d.median_price||d.lowest_price);
+    if(!newPrice)throw new Error("Preço vazio");
+    i.price=newPrice; save();
+    if(el){el.textContent=brl(i.price);el.className="";el.title=""}
+    calc(); return true;
+  }catch(e){
+    i.price=oldPrice;
+    if(el){
+      el.textContent=oldPrice?brl(oldPrice):"Erro";
+      el.className=oldPrice?"":"red";
+      el.title="Falha temporária na atualização; o último preço válido foi mantido.";
+    }
+    calc(); return false;
+  }
 }
 async function updateAll(){
   if(!items.length)return;
-  status.textContent="Atualizando preços...";
   let ok=0;
-  for(let n=0;n<items.length;n++){await updateOne(n);if(items[n].price)ok++;await new Promise(r=>setTimeout(r,900))}
+  for(let n=0;n<items.length;n++){
+    status.textContent=`Atualizando ${n+1}/${items.length}...`;
+    if(await updateOne(n))ok++;
+    if(n<items.length-1)await new Promise(r=>setTimeout(r,2200));
+  }
   status.textContent=`${ok}/${items.length} preços atualizados • ${new Date().toLocaleString("pt-BR")}`;
 }
 function removeItem(n){if(confirm(`Excluir ${items[n].name}?`)){items.splice(n,1);save();render()}}
@@ -148,6 +164,6 @@ function importBackup(ev){
   const f=ev.target.files[0];if(!f)return;const rd=new FileReader();
   rd.onload=()=>{try{const d=JSON.parse(rd.result);items=Array.isArray(d)?d:d.items;if(!Array.isArray(items))throw 0;save();render();alert("Backup importado.");}catch{alert("Backup inválido.")}ev.target.value=""};rd.readAsText(f);
 }
-render(); if(items.length){status.textContent=`${items.length} itens carregados`;updateAll()}
+render(); if(items.length){status.textContent=`${items.length} itens carregados • últimos preços mantidos`}
 </script>
 </body></html>
